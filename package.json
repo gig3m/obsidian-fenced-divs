@@ -1,0 +1,25 @@
+{
+  "name": "obsidian-fenced-divs",
+  "version": "0.1.0",
+  "description": "Render Pandoc fenced divs (::: name ... :::) as styled blocks in Obsidian.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "postbuild": "node -e \"if(require('fs').existsSync('scripts/link-to-test-vault.mjs'))require('child_process').execSync('node scripts/link-to-test-vault.mjs',{stdio:'inherit'})\""
+  },
+  "keywords": ["obsidian", "obsidian-plugin", "pandoc", "fenced-divs"],
+  "author": "Kyle Arrington",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "^1.5.0",
+    "tslib": "^2.6.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
+}

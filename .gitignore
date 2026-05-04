@@ -1,0 +1,19 @@
+# Node
+node_modules/
+
+# Build output
+main.js
+*.js.map
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+
+# Test vault state (only select .obsidian files are tracked)
+test-vault/.obsidian/*
+!test-vault/.obsidian/community-plugins.json
+!test-vault/.obsidian/app.json
+test-vault/.obsidian/plugins/
+test-vault/.trash/
+test-vault/.makemd/

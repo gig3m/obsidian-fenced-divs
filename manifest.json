@@ -1,0 +1,11 @@
+{
+  "id": "fenced-divs",
+  "name": "Pandoc Fenced Divs",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Render Pandoc fenced divs (::: name ... :::) as styled blocks.",
+  "author": "Kyle Arrington",
+  "authorUrl": "https://github.com/gig3m",
+  "fundingUrl": "",
+  "isDesktopOnly": true
+}
