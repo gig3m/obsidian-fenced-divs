@@ -23,12 +23,15 @@ Multiple classes — first is primary, others ride along.
 ## Unknown class (renders with generic framing only)
 
 ::: scripture
-"In the beginning was the Word." Add a vault CSS snippet to style this block:
+"In the beginning was the Word." 
+:::
+
+
+Add a vault CSS snippet to style this block:
 
 ```css
 .ofd-block-scripture { font-style: italic; color: maroon; }
 ```
-:::
 
 ## Coexistence with native callouts
 

@@ -1,39 +1,48 @@
-/* obsidian-fenced-divs — render styles */
+/* obsidian-fenced-divs — render styles
+ *
+ * Mirrors Obsidian's native callout look: tinted background, rounded
+ * corners, a bold accent-colored title row at the top. Per-class accent
+ * color comes from --ofd-rgb (a raw "r, g, b" triplet so we can wrap it
+ * in rgba() for tints). Override --ofd-rgb in vault snippets to color
+ * new classes.
+ *
+ * Two render layers, one visual contract:
+ *   - Reading view: <div class="ofd-block ofd-block-<name> ofd-block-{start|middle|end|single}">
+ *   - Live preview: per-line decorations (.ofd-cm-line-*) + a FenceTitleWidget on the open fence line.
+ */
 
 /* ============================================================
-   Generic framing — both reading view and live preview.
-   Override in vault snippets to customize per-class character.
+   Per-class color tokens.
+   Default is neutral gray so unknown classes don't masquerade as one
+   of the named ones. Each named class supplies its own accent.
    ============================================================ */
 
 .ofd-block,
-.ofd-cm-block {
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--callout-radius, 8px);
-  padding: 0.75em 1em;
-  margin: 0.5em 0;
-  background-color: var(--background-primary-alt);
+.ofd-cm-line {
+  --ofd-rgb: 158, 158, 158;
 }
 
-/* Live-preview wrapper provides reliable vertical spacing between
-   adjacent block widgets (similar to the wrapper trick in rubric). */
-.ofd-cm-callout-wrapper {
-  margin: 0.5em 0;
-}
-
-/* Hidden raw-fence markers from the post-processor. */
-.ofd-raw {
-  display: none;
-}
+.ofd-block-note,     .ofd-cm-line-note     { --ofd-rgb: var(--color-blue-rgb); }
+.ofd-block-warning,  .ofd-cm-line-warning  { --ofd-rgb: var(--color-orange-rgb); }
+.ofd-block-tip,      .ofd-cm-line-tip      { --ofd-rgb: var(--color-green-rgb); }
+.ofd-block-quote,    .ofd-cm-line-quote    { --ofd-rgb: 158, 158, 158; }
+.ofd-block-aside,    .ofd-cm-line-aside    { --ofd-rgb: 158, 158, 158; }
 
 /* ============================================================
    Reading view — section-aware framing.
-   Markdown is split into sections at blank lines; a fenced div may
-   span multiple sections, so start/middle/end need different borders
+   Markdown is split into sections at blank lines; a fenced div may span
+   multiple sections, so start/middle/end need different rounded corners
    for the framing to feel continuous.
    ============================================================ */
 
+.ofd-block {
+  background-color: rgba(var(--ofd-rgb), 0.1);
+  border-radius: var(--callout-radius, var(--radius-s));
+  padding: 22px 24px;
+  margin: 20px 0;
+}
+
 .ofd-block-start {
-  border-bottom: none;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   margin-bottom: 0;
@@ -41,8 +50,6 @@
 }
 
 .ofd-block-middle {
-  border-top: none;
-  border-bottom: none;
   border-radius: 0;
   margin-top: 0;
   margin-bottom: 0;
@@ -51,55 +58,97 @@
 }
 
 .ofd-block-end {
-  border-top: none;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
   margin-top: 0;
   padding-top: 0;
 }
 
-/* Single-section blocks keep the default framing — no overrides needed. */
+/* Title row at the top of every start (and single) section. Mirrors the
+   structure of a native .callout-title so theme overrides can reuse the
+   same vars. */
+.ofd-block-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--callout-title-weight, var(--font-semibold, 600));
+  font-size: var(--callout-title-size, inherit);
+  color: rgb(var(--ofd-rgb));
+  text-transform: capitalize;
+  margin-bottom: 16px;
+}
+
+.ofd-block-title-inner {
+  flex: 1;
+}
+
+/* Hidden raw `:::` fence text that the post-processor leaves in place so
+   external converters still see canonical Pandoc source. */
+.ofd-raw {
+  display: none;
+}
 
 /* ============================================================
-   Live-preview — fence dimming when cursor is inside the block.
+   Live preview — line decorations + a per-fence title widget.
+   Open fence is replaced by the title widget when not actively edited,
+   matching how native callouts replace `> [!name] Title` with a styled
+   header. Close fence has no native equivalent and collapses entirely.
    ============================================================ */
 
-.ofd-cm-fence {
-  opacity: 0.4;
-  font-family: var(--font-monospace);
+/* Live-preview padding/margin rules use !important because CodeMirror /
+   Obsidian's editor theme injects line padding via styles that beat
+   ordinary class-selector specificity. Without !important the values
+   are silently swallowed. */
+.cm-line.ofd-cm-line {
+  background-color: rgba(var(--ofd-rgb), 0.1);
+  padding-left: 24px !important;
+  padding-right: 24px !important;
 }
 
-.ofd-cm-body {
-  /* per-block body class hooks; default no styling */
+/* Open fence line: the title row. Generous padding-bottom creates a
+   gap between the title row and the first body line — adjacent CM lines
+   stack tight by default. */
+.cm-line.ofd-cm-line-open {
+  border-top-left-radius: var(--callout-radius, var(--radius-s));
+  border-top-right-radius: var(--callout-radius, var(--radius-s));
+  margin-top: 20px !important;
+  padding-top: 18px !important;
+  padding-bottom: 16px !important;
 }
 
-/* ============================================================
-   Optional starter styles for common semantic classes.
-   These are deliberately minimal — designed to be overridden.
-   ============================================================ */
-
-.ofd-block-warning,
-.ofd-cm-block-warning {
-  border-left: 3px solid var(--color-red, #c0392b);
+/* The last body line carries the bottom radius and bottom spacing for
+   the block. The close fence is always collapsed when decorations are
+   applied — when the cursor enters the block, decorations are dropped
+   entirely and the close fence becomes visible as raw `:::` text. */
+.cm-line.ofd-cm-line-body-bottom {
+  border-bottom-left-radius: var(--callout-radius, var(--radius-s));
+  border-bottom-right-radius: var(--callout-radius, var(--radius-s));
+  margin-bottom: 20px !important;
+  padding-bottom: 18px !important;
 }
 
-.ofd-block-note,
-.ofd-cm-block-note {
-  border-left: 3px solid var(--color-blue, #2980b9);
+/* Collapse the close fence line entirely. The line element stays in the
+   doc model so navigation works; nothing paints. */
+.cm-line.ofd-cm-line-close.ofd-cm-line-fence {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  height: 0;
+  min-height: 0;
+  line-height: 0;
+  font-size: 0;
+  overflow: hidden;
 }
 
-.ofd-block-tip,
-.ofd-cm-block-tip {
-  border-left: 3px solid var(--color-green, #27ae60);
-}
-
-.ofd-block-quote,
-.ofd-cm-block-quote {
-  border-left: 3px solid var(--text-faint);
-  font-style: italic;
-}
-
-.ofd-block-aside,
-.ofd-cm-block-aside {
-  border-left: 3px dashed var(--text-faint);
+/* Title widget — shown when the open fence line is not actively edited.
+   Matches .ofd-block-title visually so reading view and live preview feel
+   identical when the cursor is outside the block. */
+.ofd-cm-fence-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  font-weight: var(--callout-title-weight, var(--font-semibold, 600));
+  font-size: var(--callout-title-size, inherit);
+  color: rgb(var(--ofd-rgb));
+  text-transform: capitalize;
+  font-family: inherit;
 }

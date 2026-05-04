@@ -1,153 +1,127 @@
 import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
 import { EditorState, Range, StateField } from "@codemirror/state";
-import { App, Component, MarkdownRenderer } from "obsidian";
-import { parse, Block, ParsedAttrs } from "./parser";
-import { applyAttrs } from "./render";
+import { parse } from "./parser";
 
-class FencedDivWidget extends WidgetType {
-  constructor(
-    private readonly app: App,
-    private readonly component: Component,
-    private readonly primaryClass: string,
-    private readonly attrs: ParsedAttrs,
-    private readonly bodyMarkdown: string,
-    private readonly sourcePath: string,
-    private readonly cursorLandingPos: number,
-  ) {
+/**
+ * Whole-block fallback model:
+ *
+ * - Cursor (or any selection) overlaps the block: no decorations at all.
+ *   The block reverts to raw markdown — `:::name`, body, and `:::` are all
+ *   plain text, fully editable. This is the "edit mode" view.
+ * - Cursor outside the block: full styling. Open fence is replaced by a
+ *   FenceTitleWidget showing the class name; close fence is collapsed to
+ *   zero height; body lines get a tinted background. This is the "preview"
+ *   view.
+ *
+ * The earlier per-line model (only the active fence line revealing raw
+ * source) made the close fence unreachable: it was collapsed to height 0,
+ * so the user couldn't click or arrow-navigate to it without skipping
+ * past. Whole-block fallback fixes that — moving the cursor into the
+ * block surfaces every line for editing in one motion.
+ */
+
+class FenceTitleWidget extends WidgetType {
+  constructor(private readonly primaryClass: string) {
     super();
   }
 
-  toDOM(view: EditorView): HTMLElement {
-    const outer = document.createElement("div");
-    outer.className = "ofd-cm-callout-wrapper";
-
-    const wrap = document.createElement("div");
-    applyAttrs(wrap, this.primaryClass, this.attrs, "ofd-cm-block");
-
-    if (this.bodyMarkdown.length > 0) {
-      const body = document.createElement("div");
-      body.className = `ofd-cm-body ofd-cm-body-${this.primaryClass}`;
-      void MarkdownRenderer.render(
-        this.app,
-        this.bodyMarkdown,
-        body,
-        this.sourcePath,
-        this.component,
-      );
-      wrap.appendChild(body);
-    }
-
-    wrap.addEventListener("click", e => {
-      const target = e.target as HTMLElement;
-      if (target.closest("a, button, input, textarea")) return;
-      e.preventDefault();
-      view.dispatch({
-        selection: { anchor: this.cursorLandingPos },
-        scrollIntoView: false,
-      });
-      view.focus();
-    });
-
-    outer.appendChild(wrap);
-    return outer;
+  toDOM(): HTMLElement {
+    const wrap = document.createElement("span");
+    wrap.className = "ofd-cm-fence-title";
+    const inner = document.createElement("span");
+    inner.className = "ofd-cm-fence-title-inner";
+    inner.textContent = this.primaryClass;
+    wrap.appendChild(inner);
+    return wrap;
   }
 
-  ignoreEvent(event: Event): boolean {
-    return event.type !== "click";
+  eq(other: FenceTitleWidget): boolean {
+    return other.primaryClass === this.primaryClass;
   }
 
-  eq(other: FencedDivWidget): boolean {
-    return (
-      other.primaryClass === this.primaryClass &&
-      other.bodyMarkdown === this.bodyMarkdown &&
-      other.cursorLandingPos === this.cursorLandingPos &&
-      sameAttrs(other.attrs, this.attrs)
-    );
+  ignoreEvent(): boolean {
+    // Let clicks fall through to CodeMirror so the cursor lands on the
+    // fence line, which flips fence-active true and reveals the source.
+    return false;
   }
 }
 
-function sameAttrs(a: ParsedAttrs, b: ParsedAttrs): boolean {
-  if (a.id !== b.id) return false;
-  if (a.classes.length !== b.classes.length) return false;
-  for (let i = 0; i < a.classes.length; i++) {
-    if (a.classes[i] !== b.classes[i]) return false;
-  }
-  const ak = Object.keys(a.data), bk = Object.keys(b.data);
-  if (ak.length !== bk.length) return false;
-  for (const k of ak) if (a.data[k] !== b.data[k]) return false;
-  return true;
-}
-
-export function makeLivePreviewExtension(opts: {
-  app: App;
-  component: Component;
-  getSourcePath: () => string;
-}) {
-  const { app, component, getSourcePath } = opts;
+export function makeLivePreviewExtension() {
   return StateField.define<DecorationSet>({
     create(state) {
-      return buildDecorations(state, app, component, getSourcePath());
+      return buildDecorations(state);
     },
     update(_value, tr) {
-      return buildDecorations(tr.state, app, component, getSourcePath());
+      return buildDecorations(tr.state);
     },
     provide: f => EditorView.decorations.from(f),
   });
 }
 
-function buildDecorations(
-  state: EditorState,
-  app: App,
-  component: Component,
-  sourcePath: string,
-): DecorationSet {
+function buildDecorations(state: EditorState): DecorationSet {
   const ranges: Range<Decoration>[] = [];
   const blocks = parse(state.doc.toString());
-  const cursorLine = state.doc.lineAt(state.selection.main.head).number;
-  const selRanges = state.selection.ranges;
 
   for (const b of blocks) {
     if (b.kind !== "matched") continue;
 
-    // Parser uses 0-indexed lines; CodeMirror uses 1-indexed.
+    // Parser is 0-indexed; CodeMirror is 1-indexed.
     const openLineNo = b.openLine + 1;
     const closeLineNo = b.closeLine + 1;
     if (openLineNo < 1 || closeLineNo > state.doc.lines) continue;
 
+    if (cursorOrSelectionOverlapsBlock(state, openLineNo, closeLineNo)) {
+      // Edit mode: leave the block entirely undecorated so every line —
+      // including the closing `:::` — is visible and editable as raw
+      // markdown.
+      continue;
+    }
+
+    const primary = b.primaryClass;
+    const baseClass = `ofd-cm-line ofd-cm-line-${primary}`;
+    const bodyFirst = openLineNo + 1;
+    const bodyLast = closeLineNo - 1;
+    const hasBody = bodyFirst <= bodyLast;
+
     const openL = state.doc.line(openLineNo);
-    const closeL = state.doc.line(closeLineNo);
+    const closeL = closeLineNo > openLineNo ? state.doc.line(closeLineNo) : null;
 
-    const inside = isCursorInside(openLineNo, closeLineNo, cursorLine, selRanges, state);
-
-    if (!inside) {
-      let bodyMarkdown = "";
-      if (openLineNo + 1 <= closeLineNo - 1) {
-        const startOffset = state.doc.line(openLineNo + 1).from;
-        const endOffset = state.doc.line(closeLineNo - 1).to;
-        bodyMarkdown = state.doc.sliceString(startOffset, endOffset);
-      }
-      const cursorLandingPos = openL.to;
-      const widget = new FencedDivWidget(
-        app,
-        component,
-        b.primaryClass,
-        b.attrs,
-        bodyMarkdown,
-        sourcePath,
-        cursorLandingPos,
+    // ----- Open fence line: replaced by title widget -----
+    ranges.push(
+      Decoration.line({
+        class: `${baseClass} ofd-cm-line-open ofd-cm-line-fence`,
+      }).range(openL.from),
+    );
+    if (openL.from < openL.to) {
+      ranges.push(
+        Decoration.replace({ widget: new FenceTitleWidget(primary) })
+          .range(openL.from, openL.to),
       );
-      const fromOffset = openL.from;
-      const toOffset = closeL.number === state.doc.lines ? closeL.to : closeL.to + 1;
-      ranges.push(Decoration.replace({ widget, block: true }).range(fromOffset, toOffset));
-    } else {
-      const bodyClass = `ofd-cm-body ofd-cm-body-${b.primaryClass}`;
-      for (let n = openLineNo + 1; n <= closeLineNo - 1; n++) {
+    }
+
+    // ----- Body lines -----
+    if (hasBody) {
+      for (let n = bodyFirst; n <= bodyLast; n++) {
         if (n < 1 || n > state.doc.lines) continue;
         const line = state.doc.line(n);
-        ranges.push(Decoration.line({ class: bodyClass }).range(line.from));
+        let cls = `${baseClass} ofd-cm-line-body`;
+        // The last body line provides the bottom radius since the close
+        // fence is always collapsed in this branch (cursor is outside).
+        if (n === bodyLast) cls += " ofd-cm-line-body-bottom";
+        ranges.push(Decoration.line({ class: cls }).range(line.from));
       }
-      ranges.push(Decoration.line({ class: "ofd-cm-fence" }).range(openL.from));
-      ranges.push(Decoration.line({ class: "ofd-cm-fence" }).range(closeL.from));
+    }
+
+    // ----- Close fence line: collapsed to zero height -----
+    if (closeL) {
+      ranges.push(
+        Decoration.line({
+          class: `${baseClass} ofd-cm-line-close ofd-cm-line-fence`,
+        }).range(closeL.from),
+      );
+      if (closeL.from < closeL.to) {
+        ranges.push(Decoration.replace({}).range(closeL.from, closeL.to));
+      }
     }
   }
 
@@ -155,18 +129,19 @@ function buildDecorations(
   return Decoration.set(ranges, true);
 }
 
-function isCursorInside(
+/**
+ * True if the main cursor or any selection range touches any line from
+ * openLineNo through closeLineNo (inclusive).
+ */
+function cursorOrSelectionOverlapsBlock(
+  state: EditorState,
   openLineNo: number,
   closeLineNo: number,
-  cursorLine: number,
-  selRanges: readonly { from: number; to: number }[],
-  state: EditorState,
 ): boolean {
-  if (cursorLine >= openLineNo && cursorLine <= closeLineNo) return true;
-  for (const r of selRanges) {
+  for (const r of state.selection.ranges) {
     const fromLine = state.doc.lineAt(r.from).number;
     const toLine = state.doc.lineAt(r.to).number;
-    if (toLine >= openLineNo && fromLine <= closeLineNo) return true;
+    if (fromLine <= closeLineNo && toLine >= openLineNo) return true;
   }
   return false;
 }

@@ -39,7 +39,24 @@ function decorateIfInRange(
   else if (isEnd) el.classList.add("ofd-block-end");
   else el.classList.add("ofd-block-middle");
 
+  if (isStart) insertTitle(el, b.primaryClass);
   hideRawFenceText(el, isStart, isEnd);
+}
+
+/**
+ * Add a callout-style title row at the top of the start section. CSS handles
+ * the visual styling (bold, accent color, capitalization). Idempotent: a
+ * second post-processor pass on the same element won't duplicate the title.
+ */
+function insertTitle(el: HTMLElement, primaryClass: string): void {
+  if (el.querySelector(":scope > .ofd-block-title")) return;
+  const title = document.createElement("div");
+  title.className = "ofd-block-title";
+  const inner = document.createElement("span");
+  inner.className = "ofd-block-title-inner";
+  inner.textContent = primaryClass;
+  title.appendChild(inner);
+  el.insertBefore(title, el.firstChild);
 }
 
 /**

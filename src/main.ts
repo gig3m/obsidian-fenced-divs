@@ -5,13 +5,7 @@ import { makeLivePreviewExtension } from "./live-preview";
 export default class FencedDivsPlugin extends Plugin {
   async onload() {
     this.registerMarkdownPostProcessor(makeReadingViewProcessor());
-    this.registerEditorExtension(
-      makeLivePreviewExtension({
-        app: this.app,
-        component: this,
-        getSourcePath: () => this.app.workspace.getActiveFile()?.path ?? "",
-      }),
-    );
+    this.registerEditorExtension(makeLivePreviewExtension());
     console.log("[fenced-divs] loaded");
   }
 
