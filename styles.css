@@ -1,1 +1,105 @@
-/* obsidian-fenced-divs — see Phase 3 for full styles */
+/* obsidian-fenced-divs — render styles */
+
+/* ============================================================
+   Generic framing — both reading view and live preview.
+   Override in vault snippets to customize per-class character.
+   ============================================================ */
+
+.ofd-block,
+.ofd-cm-block {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--callout-radius, 8px);
+  padding: 0.75em 1em;
+  margin: 0.5em 0;
+  background-color: var(--background-primary-alt);
+}
+
+/* Live-preview wrapper provides reliable vertical spacing between
+   adjacent block widgets (similar to the wrapper trick in rubric). */
+.ofd-cm-callout-wrapper {
+  margin: 0.5em 0;
+}
+
+/* Hidden raw-fence markers from the post-processor. */
+.ofd-raw {
+  display: none;
+}
+
+/* ============================================================
+   Reading view — section-aware framing.
+   Markdown is split into sections at blank lines; a fenced div may
+   span multiple sections, so start/middle/end need different borders
+   for the framing to feel continuous.
+   ============================================================ */
+
+.ofd-block-start {
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ofd-block-middle {
+  border-top: none;
+  border-bottom: none;
+  border-radius: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.ofd-block-end {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* Single-section blocks keep the default framing — no overrides needed. */
+
+/* ============================================================
+   Live-preview — fence dimming when cursor is inside the block.
+   ============================================================ */
+
+.ofd-cm-fence {
+  opacity: 0.4;
+  font-family: var(--font-monospace);
+}
+
+.ofd-cm-body {
+  /* per-block body class hooks; default no styling */
+}
+
+/* ============================================================
+   Optional starter styles for common semantic classes.
+   These are deliberately minimal — designed to be overridden.
+   ============================================================ */
+
+.ofd-block-warning,
+.ofd-cm-block-warning {
+  border-left: 3px solid var(--color-red, #c0392b);
+}
+
+.ofd-block-note,
+.ofd-cm-block-note {
+  border-left: 3px solid var(--color-blue, #2980b9);
+}
+
+.ofd-block-tip,
+.ofd-cm-block-tip {
+  border-left: 3px solid var(--color-green, #27ae60);
+}
+
+.ofd-block-quote,
+.ofd-cm-block-quote {
+  border-left: 3px solid var(--text-faint);
+  font-style: italic;
+}
+
+.ofd-block-aside,
+.ofd-cm-block-aside {
+  border-left: 3px dashed var(--text-faint);
+}
