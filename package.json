@@ -1,6 +1,6 @@
 {
   "name": "obsidian-fenced-divs",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Render Pandoc fenced divs (::: name ... :::) as styled blocks in Obsidian.",
   "main": "main.js",
   "scripts": {
