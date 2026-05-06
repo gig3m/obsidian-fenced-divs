@@ -64,6 +64,18 @@
   padding-top: 0;
 }
 
+/* Section roots that are list elements need an extra-specific rule.
+   Obsidian's reading-view base is `.markdown-rendered ul, .markdown-rendered ol
+   { padding-inline-start: 0 }` (specificity 0,1,1) — that beats `.ofd-block`
+   (0,1,0) and erases the frame's left padding when the post-processor's
+   section root happens to be a list. Bullets then render at the same column
+   they would without the block, looking un-indented. Match the specificity
+   here to restore the frame inset. */
+.markdown-rendered ul.ofd-block,
+.markdown-rendered ol.ofd-block {
+  padding-inline-start: 24px;
+}
+
 /* Title row at the top of every start (and single) section. Mirrors the
    structure of a native .callout-title so theme overrides can reuse the
    same vars. */

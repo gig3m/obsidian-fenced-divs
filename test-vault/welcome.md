@@ -38,6 +38,41 @@ Add a vault CSS snippet to style this block:
 > [!note] Native callout
 > Built-in `> [!name]` callouts coexist with `:::` fenced divs. Both render.
 
+## Lists inside fences
+
+A bulleted list directly inside a block:
+
+::: materials
+- Bibles for every student
+- Whiteboard or large paper, markers
+- Pencils, crayons or colored pencils
+:::
+
+An ordered list with prose continuation:
+
+::: discussion
+1. Why were the people so impatient?
+
+   *Moses had been gone forty days. They didn't know if he was
+   coming back.*
+
+2. What did Aaron build?
+
+   *A golden calf made of melted-down earrings and gold.*
+:::
+
+A list with blank lines around it (loose form):
+
+::: note
+Before the list:
+
+- one
+- two
+- three
+
+After the list.
+:::
+
 ## Edge cases
 
 A directive inside a fenced code block must NOT render:
