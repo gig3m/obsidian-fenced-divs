@@ -42,7 +42,13 @@
   margin: 20px 0;
 }
 
+/* Multi-section variants establish a block-formatting-context (`flow-root`)
+   so that descendants' top/bottom margins (the title row's `margin-bottom`,
+   inner `<p>`/`<ul>` `margin-block-*`) don't collapse through the section's
+   padding-zero edge into the next sibling, opening visible seams in the
+   continuous frame. */
 .ofd-block-start {
+  display: flow-root;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   margin-bottom: 0;
@@ -50,6 +56,7 @@
 }
 
 .ofd-block-middle {
+  display: flow-root;
   border-radius: 0;
   margin-top: 0;
   margin-bottom: 0;
@@ -58,22 +65,34 @@
 }
 
 .ofd-block-end {
+  display: flow-root;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
   margin-top: 0;
   padding-top: 0;
 }
 
-/* Section roots that are list elements need an extra-specific rule.
-   Obsidian's reading-view base is `.markdown-rendered ul, .markdown-rendered ol
-   { padding-inline-start: 0 }` (specificity 0,1,1) — that beats `.ofd-block`
-   (0,1,0) and erases the frame's left padding when the post-processor's
-   section root happens to be a list. Bullets then render at the same column
-   they would without the block, looking un-indented. Match the specificity
-   here to restore the frame inset. */
-.markdown-rendered ul.ofd-block,
-.markdown-rendered ol.ofd-block {
-  padding-inline-start: 24px;
+/* Lists inside a fenced-div block. The post-processor wraps a list section
+   in `<div class="el-ul ofd-block ...">` (or el-ol); the inner <ul>/<ol>
+   has Obsidian's default `padding-inline-start: 0`, leaving list inset to
+   per-li `margin-inline-start: 3ch`. Some themes shrink or remove that li
+   margin, so bullets end up cramped against the frame's left padding.
+   Pin both values with enough specificity to win over theme overrides so
+   the rendering matches Obsidian's native callout style regardless of
+   theme. */
+.markdown-rendered .ofd-block > ul,
+.markdown-rendered .ofd-block > ol {
+  padding-inline-start: 0;
+  /* Obsidian's `.markdown-rendered ul, ol` ships `margin-block-start/end:
+     var(--p-spacing)`. With `.ofd-block-middle { padding-top: 0 }` and no
+     border, that margin collapses through the wrapper — it shows up as a
+     visible frame seam above and below the list. Zero it inside the frame. */
+  margin-block-start: 0;
+  margin-block-end: 0;
+}
+.markdown-rendered .ofd-block > ul > li,
+.markdown-rendered .ofd-block > ol > li {
+  margin-inline-start: 3ch;
 }
 
 /* Title row at the top of every start (and single) section. Mirrors the
@@ -115,6 +134,19 @@
   background-color: rgba(var(--ofd-rgb), 0.1);
   padding-left: 24px !important;
   padding-right: 24px !important;
+}
+
+/* Live preview list lines: Obsidian sets a negative `text-indent` on
+   `.cm-line.HyperMD-list-line` (around -83px for level 1, more for nested
+   levels) to make wrapped lines hang under the text-after-bullet column.
+   With our `padding-left: 24px`, the first inline content (the bullet)
+   renders at `padding-left + text-indent` — which is negative, so the
+   bullet escapes the left edge of our frame. Reset `text-indent` so the
+   bullet sits inside the frame. Trade-off: wrapped list lines now align
+   under the bullet column instead of under the text-after-bullet column.
+   Theme cosmetic difference only — wrapping still works correctly. */
+.cm-line.ofd-cm-line.HyperMD-list-line {
+  text-indent: 0 !important;
 }
 
 /* Open fence line: the title row. Generous padding-bottom creates a
